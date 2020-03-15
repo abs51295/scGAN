@@ -1,12 +1,12 @@
 {
   "exp_param": {
-    "experiments_dir": "/path/to/the/directory/where/to/save/everything",
+    "experiments_dir": "/content",
     "GPU": [
       0
     ]
   },
   "experiments": {
-    "name_your_experiment": {
+    "mmt": {
       "input_ds": {
         "clustering": {
           "res": 0.15
@@ -15,7 +15,7 @@
           "min_cells": 3,
           "min_genes": 10
         },
-        "raw_input": "/path/to/the/directory/containing/the/raw/data.h5ad",
+        "raw_input": "/content/filtered_gene_matrix.h5ad",
         "scale": "normalize_per_cell_LS_20000",
         "split": {
           "balanced_split": true,
@@ -25,7 +25,7 @@
         }
       },
       "training": {
-        "max_steps": 1000000,
+        "max_steps": 3000,
         "learning_rate": {
           "decay": true,
             "alpha_0": 0.0001,
@@ -45,7 +45,7 @@
         "summary_freq": 50
       },
       "model": {
-        "type": "cscGAN",
+        "type": "scGAN",
         "latent_dim": 128,
         "output_LSN": 20000,
         "critic_layers": [

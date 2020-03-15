@@ -216,6 +216,10 @@ class GeneMatrix:
         print("Scaling of the data is done using " + self.scale["scaling"]
               + "with " + str(self.scale["scale_value"]))
 
+        print("Scaling with sqrt on data")
+
+        self.sc_raw.X = np.sqrt(self.sc_raw.X)
+
     def split(self):
         """
         Splits the data into training, validation and test sets, using the
@@ -358,14 +362,14 @@ class GeneMatrix:
         -------
 
         """
-        # apply clustering when needed
-        self.clustering()
-
         # apply basic global filtering and scaling
         self.filtering()
 
         # apply basic global filtering and scaling
         self.scaling()
+
+        # apply clustering when needed
+        self.clustering()
 
         # apply balanced split to test train and validation, when required
         self.split()

@@ -15,7 +15,7 @@ from estimators.utilities import set_learning_rate, set_global_step, rescale
 from estimators.utilities import gradient_step, sc_summary, save_generated_cells
 from MulticoreTSNE import MulticoreTSNE as TSNE
 tsne = TSNE(n_jobs=20)
-
+import umap
 
 class cscGAN:
     """
@@ -661,6 +661,9 @@ class cscGAN:
         self.generate_tSNE_image(sess, cells_no, exp_folder,
                                  train_step, clusters_ratios)
 
+        print("Find UMAP embedding for the generated and the validation cells")
+        self.generate_UMAP_image(sess, cells_no, exp_folder, train_step, clusters_ratios)
+
     def generate_tSNE_image(self, sess, cells_no, exp_folder,
                             train_step, clusters_ratios):
         """
@@ -734,3 +737,80 @@ class cscGAN:
                    fontsize=8, bbox_to_anchor=(0, 0))
         plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
         plt.close()
+
+    def generate_UMAP_image(self, sess, cells_no, exp_folder,
+                            train_step, clusters_ratios):
+        """
+        Generates and saves a t-SNE plot with real and simulated cells
+
+        Parameters
+        ----------
+        sess : Session
+            The TF Session in use.
+        cells_no : int
+            Number of cells to use for the real and simulated cells (each)
+            used for the plot.
+        exp_folder : str
+            Path to the job folder in which the outputs will be saved.
+        train_step : int
+            Index of the current training step.
+        clusters_ratios : list
+            List containing the different cluster ratios to use for the
+            conditional generation.
+
+        Returns
+        -------
+
+        """
+
+        tnse_logdir = os.path.join(exp_folder, 'UMAP')
+        if not os.path.isdir(tnse_logdir):
+            os.makedirs(tnse_logdir)
+
+        # generate fake cells
+        fake_cells, fake_clusters = self.generate_cells(
+            checkpoint=None,
+            cells_no=cells_no,
+            clusters_ratios=clusters_ratios,
+            sess=sess)
+
+        valid_cells, valid_clusters = self.read_valid_cells(sess, cells_no)
+
+        real_cells_clusters = np.array(valid_clusters, dtype=np.float32).flatten()
+        fake_cells_clusters = np.array(fake_clusters, dtype=np.float32).flatten()
+
+        reducer = umap.UMAP()
+
+        embedded_cells = reducer.fit_transform(
+            np.concatenate((valid_cells, fake_cells), axis=0))
+        embedded_cells_real = embedded_cells[0:real_cells_clusters.shape[0], :]
+        embedded_cells_fake = embedded_cells[real_cells_clusters.shape[0]:, :]
+
+        colormap = cm.nipy_spectral
+        colors = [colormap(i) for i in np.linspace(0, 1, self.clusters_no)]
+
+        plt.clf()
+        plt.figure(figsize=(16, 12))
+
+        for i in range(self.clusters_no):
+            mask = real_cells_clusters[:] == i
+
+            plt.scatter(embedded_cells_real[mask, 0],
+                        embedded_cells_real[mask, 1],
+                        c=colors[i], marker='*',
+                        label='real_' + str(i))
+
+        for i in range(self.clusters_no):
+            mask = fake_cells_clusters[:] == i
+            plt.scatter(embedded_cells_fake[mask, 0],
+                        embedded_cells_fake[mask, 1],
+                        c=colors[i], marker='o',
+                        label='fake_' + str(i))
+
+        plt.grid(True)
+        plt.legend(loc='lower left',
+                   numpoints=1, ncol=3,
+                   fontsize=8, bbox_to_anchor=(0, 0))
+        plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
+        plt.close()
+

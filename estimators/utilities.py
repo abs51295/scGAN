@@ -265,6 +265,10 @@ class Generator:
                     fake_outputs = tf.transpose(tf.transpose(fake_outputs) *
                                                 scale_ls)
 
+                    fake_outputs = tf.sqrt(tf.add(fake_outputs, sys.float_info.epsilon))
+                    # print("Fake outputs: ", fake_outputs.eval())
+                    
+
         return cls(fake_outputs, batch_size, latent_dim, output_cells_dim, var_scope,
                    gen_layers, output_lsn, is_training=is_training, reuse=reuse)
 

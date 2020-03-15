@@ -14,7 +14,7 @@ from estimators.utilities import set_learning_rate, set_global_step, rescale
 from estimators.utilities import add_random_input
 from MulticoreTSNE import MulticoreTSNE as TSNE
 tsne = TSNE(n_jobs=20)
-
+import umap
 
 class scGAN:
     """
@@ -573,6 +573,8 @@ class scGAN:
         """
         print("Find tSNE embedding for the generated and the validation cells")
         self.generate_tSNE_image(sess, cells_no, exp_folder, train_step)
+        print("Find UMAP embedding for the generated and the validation cells")
+        self.generate_UMAP_image(sess, cells_no, exp_folder, train_step)
 
     def generate_tSNE_image(self, sess, cells_no, exp_folder, train_step):
         """
@@ -629,3 +631,62 @@ class scGAN:
                    fontsize=8, bbox_to_anchor=(0, 0))
         plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
         plt.close()
+
+    def generate_UMAP_image(self, sess, cells_no, exp_folder, train_step):
+        """
+        Generates and saves a t-SNE plot with real and simulated cells
+
+        Parameters
+        ----------
+        sess : Session
+            The TF Session in use.
+        cells_no : int
+            Number of cells to use for the real and simulated cells (each) used
+             for the plot.
+        exp_folder : str
+            Path to the job folder in which the outputs will be saved.
+        train_step : int
+            Index of the current training step.
+
+        Returns
+        -------
+
+        """
+
+        tnse_logdir = os.path.join(exp_folder, 'UMAP')
+        if not os.path.isdir(tnse_logdir):
+            os.makedirs(tnse_logdir)
+
+        # generate fake cells
+        fake_cells = self.generate_cells(cells_no=cells_no,
+                                         checkpoint=None,
+                                         sess=sess)
+
+        valid_cells = self.read_valid_cells(sess, cells_no)
+
+        reducer = umap.UMAP()
+
+        embedded_cells = reducer.fit_transform(
+            np.concatenate((valid_cells, fake_cells), axis=0))
+        embedded_cells_real = embedded_cells[0:valid_cells.shape[0], :]
+        embedded_cells_fake = embedded_cells[valid_cells.shape[0]:, :]
+
+        plt.clf()
+        plt.figure(figsize=(16, 12))
+
+        plt.scatter(embedded_cells_real[:, 0], embedded_cells_real[:, 1],
+                    c='blue',
+                    marker='*',
+                    label='real')
+
+        plt.scatter(embedded_cells_fake[:, 0], embedded_cells_fake[:, 1],
+                    c='red',
+                    marker='o',
+                    label='fake')
+
+        plt.grid(True)
+        plt.legend(loc='lower left', numpoints=1, ncol=2,
+                   fontsize=8, bbox_to_anchor=(0, 0))
+        plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
+        plt.close()
+

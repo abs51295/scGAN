@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import sys
 
 
 def generator_layer(input_size, output_size):
@@ -22,12 +23,13 @@ class Generator(nn.Module):
     def __init__(self, input_size, hidden_layers, output_size, output_lsn=None):
         super(Generator, self).__init__()
 
+        self.latent_dim = input_size
         self.output_lsn = output_lsn
         self.layer_sizes = [input_size] + [layer_size for _,
                                            layer_size in enumerate(hidden_layers)]
 
-        hidden_layers = [generator_layer(input_s, output_s) for input_s, output_s
-                         in zip(self.layer_sizes, self.layer_sizes[1:])]
+        hidden_layers = [generator_layer(input_s, output_s) for input_s, output_s in zip(
+            self.layer_sizes, self.layer_sizes[1:])]
 
         self.hidden = nn.Sequential(*hidden_layers)
 
@@ -40,7 +42,7 @@ class Generator(nn.Module):
         x = self.output_layer(x)
         if self.output_lsn:
             gammas_output = torch.ones(
-                x.size(0), dtype=torch.float32) * output_lsn
+                x.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.output_lsn
             sigmas = torch.sum(x, 1)
             scale_ls = gammas_output / (sigmas + sys.float_info.epsilon)
             x = x * scale_ls[:, None]
@@ -48,7 +50,8 @@ class Generator(nn.Module):
         return x
 
     def sample_latent(self, num_samples):
-        return torch.randn(num_samples, self.input_size)
+        return torch.randn(num_samples, self.latent_dim)
+
 
 class Discriminator(nn.Module):
 
@@ -58,8 +61,8 @@ class Discriminator(nn.Module):
         self.layer_sizes = [input_size] + [layer_size for _,
                                            layer_size in enumerate(hidden_layers)]
 
-    	hidden_layers = [discriminator_layer(input_s, output_s) for input_s, output_s
-                     in zip(self.layer_sizes, self.layer_sizes[1:])]
+        hidden_layers = [discriminator_layer(input_s, output_s) for input_s, output_s in zip(
+            self.layer_sizes, self.layer_sizes[1:])]
 
         self.hidden = nn.Sequential(*hidden_layers)
 

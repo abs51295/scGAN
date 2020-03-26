@@ -15,7 +15,7 @@
           "min_cells": 3,
           "min_genes": 10
         },
-        "raw_input": "/content/filtered_gene_matrix.h5ad",
+        "raw_input": "/content/sysg1.cs.yale.edu:3010/e5sbT6LSNNtbiiyZpzuLJLtaLnHqU/053119/2065CB_MMT_cellranger/filtered_feature_bc_matrix/",
         "scale": "normalize_per_cell_LS_20000",
         "split": {
           "balanced_split": true,

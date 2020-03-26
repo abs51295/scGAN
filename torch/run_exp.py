@@ -7,7 +7,7 @@ from training import Trainer
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam, lr_scheduler
 import scanpy
-
+import torch
 
 class GeneDataset(Dataset):
     """Filtered dataset as above"""
@@ -39,10 +39,7 @@ def get_optimizer(model, optimizer, alpha_0, alpha_final, beta1, beta2):
     optim = Adam(params=model.parameters(), lr=alpha_0, betas=(beta1, beta2),
                  amsgrad=(optimizer == 'AMSGrad'))
 
-    scheduler = lr_scheduler.ExponentialLR(
-        optimizer=optim, gamma=alpha_0 / alpha_final)
-
-    return optim, scheduler
+    return optim
 
 
 def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
@@ -73,10 +70,10 @@ def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
 
     """
 
-    # read the available GPU for training
-    avail_gpus = exp_gpu[1]
-    gpu_id = avail_gpus.pop(0)
-    os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(gpu_id)
+    # # read the available GPU for training
+    # avail_gpus = exp_gpu[1]
+    # gpu_id = avail_gpus.pop(0)
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(gpu_id)
 
     # read the parameters
     exp_folder = exp_gpu[0]
@@ -121,24 +118,24 @@ def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
         valid_cells_no = hparams["preprocessed"]["valid_count"]
         max_steps=hparams['training']['max_steps']
 
-        G_optim, G_scheduler = get_optimizer(
+        G_optim = get_optimizer(
             G, optimizer, alpha_0, alpha_final, beta1, beta2)
-        D_optim, D_scheduler = get_optimizer(
+        D_optim = get_optimizer(
             D, optimizer, alpha_0, alpha_final, beta1, beta2)
 
         trainer = Trainer(generator=G, discriminator=D, gen_optimizer=G_optim,
-                          dis_optimizer=D_optim, gen_scheduler=G_scheduler, dis_scheduler=D_scheduler,
+                          dis_optimizer=D_optim,
                           exp_dir=log_dir, valid_cells=valid_cells_no, print_every=progress_freq, 
                           validation_every=validation_freq,
                           gp_weight=lambd, critic_iterations=critic_iter)
 
         train_dataset = GeneDataset(
-            h5ad_file=os.path.join(exp_folder, 'train.h5ad'))
+            h5ad_file=os.path.join(input_tfr, 'train.h5ad'))
         train_dataloader = DataLoader(
             train_dataset, batch_size=batch_size, shuffle=True)
 
         valid_dataset = GeneDataset(
-            h5ad_file=os.path.join(exp_folder, 'valid.h5ad'))
+            h5ad_file=os.path.join(input_tfr, 'valid.h5ad'))
         valid_dataloader = DataLoader(
             valid_dataset, batch_size=valid_cells_no, shuffle=True)
 

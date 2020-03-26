@@ -9,15 +9,15 @@ from validation import Validator
 
 class Trainer:
     def __init__(self, generator, discriminator, gen_optimizer, dis_optimizer,
-                gen_scheduler, dis_scheduler, exp_dir, valid_cells, gp_weight=10, 
+                exp_dir, valid_cells, gp_weight=10, 
                 critic_iterations=5, print_every=50, validation_every=1000, 
                 use_cuda=True):
         self.G = generator
         self.G_opt = gen_optimizer
-        self.G_scheduler = gen_scheduler
+        # self.G_scheduler = gen_scheduler
         self.D = discriminator
         self.D_opt = dis_optimizer
-        self.D_scheduler = dis_scheduler
+        # self.D_scheduler = dis_scheduler
         self.losses = {'G': [], 'D': [], 'GP': [], 'gradient_norm': []}
         self.num_steps = 0
         self.use_cuda = use_cuda
@@ -33,7 +33,7 @@ class Trainer:
             self.D.cuda()
 
     def _critic_train_iteration(self, data):
-        """ """
+        
         # Get generated data
         batch_size = data.size(0)
         generated_data = self.sample_generator(batch_size)
@@ -47,7 +47,7 @@ class Trainer:
 
         # Get gradient penalty
         gradient_penalty = self._gradient_penalty(data, generated_data)
-        self.losses['GP'].append(gradient_penalty.data[0])
+        self.losses['GP'].append(gradient_penalty.data)
 
         # Create total loss and optimize
         self.D_opt.zero_grad()
@@ -55,13 +55,13 @@ class Trainer:
         d_loss.backward()
 
         self.D_opt.step()
-        self.D_scheduler.step()
+        # self.D_scheduler.step()
 
         # Record loss
-        self.losses['D'].append(d_loss.data[0])
+        self.losses['D'].append(d_loss.data)
 
     def _generator_train_iteration(self, data):
-        """ """
+        
         self.G_opt.zero_grad()
 
         # Get generated data
@@ -73,10 +73,10 @@ class Trainer:
         g_loss = - d_generated.mean()
         g_loss.backward()
         self.G_opt.step()
-        self.G_scheduler.step()
+        # self.G_scheduler.step()
 
         # Record loss
-        self.losses['G'].append(g_loss.data[0])
+        self.losses['G'].append(g_loss.data)
 
     def _gradient_penalty(self, real_data, generated_data):
         batch_size = real_data.size(0)
@@ -103,7 +103,7 @@ class Trainer:
         # Gradients have shape (batch_size, num_channels, img_width, img_height),
         # so flatten to easily take norm per example in batch
         gradients = gradients.view(batch_size, -1)
-        self.losses['gradient_norm'].append(gradients.norm(2, dim=1).mean().data[0])
+        self.losses['gradient_norm'].append(gradients.norm(2, dim=1).mean().data)
 
         # Derivatives of the gradient close to 0 can cause problems because of
         # the square root, so manually calculate norm and add epsilon
@@ -115,10 +115,10 @@ class Trainer:
     def _train_epoch(self, train_data_loader, valid_data_loader):
         for i, data in enumerate(train_data_loader):
             self.num_steps += 1
-            self._critic_train_iteration(data[0])
+            self._critic_train_iteration(data)
             # Only update generator every |critic_iterations| iterations
             if self.num_steps % self.critic_iterations == 0:
-                self._generator_train_iteration(data[0])
+                self._generator_train_iteration(data)
 
             if i % self.print_every == 0:
                 print("Iteration {}".format(i + 1))
@@ -131,7 +131,7 @@ class Trainer:
             if self.num_steps % self.validation_every == 0:
                 print("Validation started")
                 self.G.eval()
-                validator = Validator(self.G, self.valid_cells, valid_dataloader, self.exp_dir, self.num_steps, self.use_cuda)
+                validator = Validator(self.G, self.valid_cells, valid_data_loader, self.exp_dir, self.num_steps, self.use_cuda)
                 validator.run_validation()
                 self.G.train()
 

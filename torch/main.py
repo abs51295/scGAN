@@ -90,14 +90,15 @@ if __name__ == '__main__':
     if a.train:
         # create a queue with jobs and train models in parallel on
         # separate GPUs using multiprocessing package
-        manager = Manager()
-        avail_gpus = manager.list(GPU_NB)
-        po = Pool(len(GPU_NB))
-        r = po.map_async(run_exp,
-                         ((exp_folder, avail_gpus) for exp_folder in exp_folders))
-        r.wait()
-        po.close()
-        po.join()
+        # manager = Manager()
+        # avail_gpus = manager.list(GPU_NB)
+        # po = Pool(len(GPU_NB))
+        # r = po.map_async(run_exp,
+        #                  ((exp_folder, avail_gpus) for exp_folder in exp_folders))
+        run_exp(exp_folders)
+        # r.wait()
+        # po.close()
+        # po.join()
 
     if a.generate:
         run_exp((a.model_path, [0]), mode='generate', cells_no=a.cells_no)

@@ -6,7 +6,7 @@ Functions that convert the expression data to h5ad.
 import multiprocessing as mp
 import os
 
-from preprocessing.process_raw import GeneMatrix
+from process_raw import GeneMatrix
 
 
 def read_and_serialize(job_path):
@@ -27,7 +27,7 @@ def read_and_serialize(job_path):
 
     sc_data.apply_preprocessing()
 
-    worker_path = join(job_path, 'h5ad_records')
+    worker_path = os.path.join(job_path, 'h5ad_records')
     os.makedirs(worker_path, exist_ok=True)
 
     train_data = sc_data.sc_raw[

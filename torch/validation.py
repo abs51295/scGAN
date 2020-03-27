@@ -25,12 +25,17 @@ class Validator:
         generated_cells = generated_cells.cpu().detach().numpy()
         generated_cells = generated_cells.reshape(
             (-1, generated_cells.shape[1]))
-
-        return generated_cells * float(20000)
-
+        generated_cells = np.square(generated_cells) * float(20000)
+        # print("Generated cells shape: " + str(generated_cells.shape))
+        return generated_cells
+    
     def read_valid_samples(self):
         cells = next(iter(self.dataloader))
-        return cells * float(20000)
+        cells = cells.cpu().detach().numpy()
+        cells = cells.reshape((-1, cells.shape[1]))
+        cells = np.square(cells) * float(20000)
+        # print("Valid cells shape: " + str(cells.shape))
+        return cells
 
     def run_validation(self):
         generated_cells = self.generate_samples()

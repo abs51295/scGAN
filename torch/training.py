@@ -86,7 +86,7 @@ class Trainer:
         alpha = alpha.expand_as(real_data)
         if self.use_cuda:
             alpha = alpha.cuda()
-        interpolated = alpha * real_data.data + (1 - alpha) * generated_data.data
+        interpolated = alpha * real_data + (1 - alpha) * generated_data
         interpolated = Variable(interpolated, requires_grad=True)
         if self.use_cuda:
             interpolated = interpolated.cuda()

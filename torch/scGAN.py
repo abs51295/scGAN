@@ -6,7 +6,6 @@ import sys
 def generator_layer(input_size, output_size):
     return nn.Sequential(
         nn.Linear(input_size, output_size),
-        nn.BatchNorm1d(output_size),
         nn.ReLU()
     )
 
@@ -33,9 +32,7 @@ class Generator(nn.Module):
 
         self.hidden = nn.Sequential(*hidden_layers)
 
-        self.output_layer = nn.Sequential(
-            nn.Linear(self.layer_sizes[-1], output_size),
-            nn.ReLU())
+        self.output_layer = nn.Sequential(nn.Linear(self.layer_sizes[-1], output_size), nn.ReLU())
 
     def forward(self, x):
         x = self.hidden(x)

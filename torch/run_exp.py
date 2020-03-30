@@ -36,8 +36,7 @@ class GeneDataset(Dataset):
 
 
 def get_optimizer(model, optimizer, alpha_0, alpha_final, beta1, beta2):
-    optim = Adam(params=model.parameters(), lr=alpha_0, betas=(beta1, beta2),
-                 amsgrad=(optimizer == 'AMSGrad'))
+    optim = Adam(params=model.parameters(), lr=1e-4, betas=(0.5, 0.9))
 
     return optim
 

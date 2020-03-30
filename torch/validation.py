@@ -25,7 +25,7 @@ class Validator:
         generated_cells = generated_cells.cpu().detach().numpy()
         generated_cells = generated_cells.reshape(
             (-1, generated_cells.shape[1]))
-        generated_cells = np.square(generated_cells) * float(20000)
+        # generated_cells = np.square(generated_cells) * float(20000)
         # print("Generated cells shape: " + str(generated_cells.shape))
         return generated_cells
     
@@ -33,7 +33,7 @@ class Validator:
         cells = next(iter(self.dataloader))
         cells = cells.cpu().detach().numpy()
         cells = cells.reshape((-1, cells.shape[1]))
-        cells = np.square(cells) * float(20000)
+        # cells = np.square(cells) * float(20000)
         # print("Valid cells shape: " + str(cells.shape))
         return cells
 
@@ -68,7 +68,7 @@ class Validator:
         if not os.path.isdir(tnse_logdir):
             os.makedirs(tnse_logdir)
 
-        reducer = umap.UMAP()
+        reducer = umap.UMAP(n_components=20, n_neighbors=20)
 
         embedded_cells = reducer.fit_transform(
             np.concatenate((valid_cells, fake_cells), axis=0))

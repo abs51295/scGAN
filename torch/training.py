@@ -5,6 +5,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.autograd import grad as torch_grad
 from validation import Validator
+import numpy as np
+import os
 
 
 class Trainer:
@@ -146,6 +148,8 @@ class Trainer:
         print("Saving the models")
         torch.save(self.G.state_dict(), os.path.join(self.exp_dir, 'generator.pth'))
         torch.save(self.D.state_dict(), os.path.join(self.exp_dir, 'discriminator.pth'))
+        np.save(os.path.join(self.exp_dir, 'G.npy'), np.array(self.losses['G']))
+        np.save(os.path.join(self.exp_dir, 'D.npy'), np.array(self.losses['D']))
 
     def sample_generator(self, num_samples):
         latent_samples = self.G.sample_latent(num_samples)

@@ -6,14 +6,14 @@ import sys
 def generator_layer(input_size, output_size):
     return nn.Sequential(
         nn.Linear(input_size, output_size),
-        nn.ReLU()
+        nn.LeakyReLU()
     )
 
 
 def discriminator_layer(input_size, output_size):
     return nn.Sequential(
         nn.Linear(input_size, output_size),
-        nn.ReLU()
+        nn.LeakyReLU()
     )
 
 
@@ -32,18 +32,18 @@ class Generator(nn.Module):
 
         self.hidden = nn.Sequential(*hidden_layers)
 
-        self.output_layer = nn.Sequential(nn.Linear(self.layer_sizes[-1], output_size), nn.ReLU())
+        self.output_layer = nn.Sequential(nn.Linear(self.layer_sizes[-1], output_size), nn.LeakyReLU())
 
     def forward(self, x):
         x = self.hidden(x)
         x = self.output_layer(x)
-        if self.output_lsn:
-            gammas_output = torch.ones(
-                x.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.output_lsn
-            sigmas = torch.sum(x, 1)
-            scale_ls = gammas_output / (sigmas + sys.float_info.epsilon)
-            x = x * scale_ls[:, None]
-            x = torch.sqrt(torch.add(x, sys.float_info.epsilon))
+        # if self.output_lsn:
+        #     gammas_output = torch.ones(
+        #         x.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.output_lsn
+        #     sigmas = torch.sum(x, 1)
+        #     scale_ls = gammas_output / (sigmas + sys.float_info.epsilon)
+        #     x = x * scale_ls[:, None]
+        #     x = torch.sqrt(torch.add(x, sys.float_info.epsilon))
         return x
 
     def sample_latent(self, num_samples):

@@ -25,7 +25,7 @@
         }
       },
       "training": {
-        "max_steps": 3000,
+        "max_steps": 1000,
         "learning_rate": {
           "decay": true,
             "alpha_0": 0.0001,

@@ -5,6 +5,9 @@ import umap
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+import MMD as mmd
+import numpy as np
 
 
 class Validator:
@@ -16,9 +19,13 @@ class Validator:
         self.use_cuda = use_cuda
         self.exp_folder = exp_folder
         self.train_step = train_step
+        if os.path.exists(os.path.join(exp_folder, 'mmd.npy')):
+          self.mmd_loss = np.load(os.path.join(exp_folder, 'mmd.npy'))
+        else:
+          self.mmd_loss = np.array([])
 
-    def generate_samples(self):
-        latent_samples = self.G.sample_latent(self.no)
+    def generate_samples(self, number):
+        latent_samples = self.G.sample_latent(number)
         if self.use_cuda:
             latent_samples = latent_samples.cuda()
         generated_cells = self.G(latent_samples)
@@ -38,10 +45,12 @@ class Validator:
         return cells
 
     def run_validation(self):
-        generated_cells = self.generate_samples()
         valid_cells = self.read_valid_samples()
+        generated_cells = self.generate_samples(len(valid_cells))
         self.generate_UMAP_image(
             valid_cells, generated_cells, self.exp_folder, self.train_step)
+        self.generate_PCA_image(valid_cells, generated_cells, self.exp_folder, self.train_step)
+        self.calculate_MMD(valid_cells, generated_cells)
 
     def generate_UMAP_image(self, valid_cells, fake_cells, exp_folder, train_step):
         """
@@ -94,3 +103,44 @@ class Validator:
                    fontsize=8, bbox_to_anchor=(0, 0))
         plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
         plt.close()
+
+    def generate_PCA_image(self, valid_cells, fake_cells, exp_folder, train_step):
+
+        tnse_logdir = os.path.join(exp_folder, 'PCA')
+        if not os.path.isdir(tnse_logdir):
+            os.makedirs(tnse_logdir)
+
+        reducer = PCA(n_components=5)
+
+        embedded_cells = reducer.fit_transform(
+            np.concatenate((valid_cells, fake_cells), axis=0))
+        
+        embedded_cells_real = embedded_cells[0:valid_cells.shape[0], :]
+        embedded_cells_fake = embedded_cells[valid_cells.shape[0]:, :]
+
+        plt.clf()
+        plt.figure(figsize=(16, 12))
+
+        plt.scatter(embedded_cells_real[:, 0], embedded_cells_real[:, 1],
+                    c='blue',
+                    marker='*',
+                    label='real')
+
+        plt.scatter(embedded_cells_fake[:, 0], embedded_cells_fake[:, 1],
+                    c='red',
+                    marker='o',
+                    label='fake')
+
+        plt.grid(True)
+        plt.legend(loc='lower left', numpoints=1, ncol=2,
+                   fontsize=8, bbox_to_anchor=(0, 0))
+        plt.savefig(tnse_logdir + '/step_' + str(train_step) + '.jpg')
+        plt.close()
+
+    def calculate_MMD(self, valid_cells, fake_cells):
+        sigma_list = np.logspace(-3, 2, 10)
+        valid_cells = torch.from_numpy(valid_cells)
+        fake_cells = torch.from_numpy(fake_cells)
+        loss = mmd.mix_rbf_mmd2(valid_cells, fake_cells, sigma_list=sigma_list)
+        loss = np.append(self.mmd_loss, loss)
+        np.save(os.path.join(self.exp_folder, 'mmd.npy'), loss)

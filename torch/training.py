@@ -44,6 +44,13 @@ class Trainer:
         # data = Variable(data)
         if self.use_cuda:
             data = data.cuda()
+
+        noise = torch.normal(mean=0, std=0.1, size=data.size(), device=torch.device('cuda'))
+
+        data += noise
+        generated_data += noise
+
+
         d_real = self.D(data)
         d_generated = self.D(generated_data)
 
@@ -69,6 +76,11 @@ class Trainer:
         # Get generated data
         batch_size = data.size(0)
         generated_data = self.sample_generator(batch_size)
+
+        # Calculate L2 loss 
+        # row_sum = torch.sum(generated_data ** 2, dim=1) / float(self.G.output_lsn) - 1
+        # output_lsn = torch.ones(generated_data.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.G.output_lsn
+        # norm_loss = torch.norm(row_sum)
 
         # Calculate loss and optimize
         d_generated = self.D(generated_data)

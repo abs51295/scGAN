@@ -36,8 +36,8 @@ class GeneDataset(Dataset):
 
 
 def get_optimizer(model, optimizer, alpha_0, alpha_final, beta1, beta2):
-    optim = Adam(params=model.parameters(), lr=1e-4, betas=(0.5, 0.9))
-
+    optim = Adam(params=model.parameters(), lr=alpha_0, betas=(0., 0.9))
+    # scheduler = lr_scheduler.ExponentialLR(optimizer=optim, gamma=alpha_final / alpha_0)
     return optim
 
 

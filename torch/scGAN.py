@@ -12,7 +12,7 @@ def generator_layer(input_size, output_size):
 
 def discriminator_layer(input_size, output_size):
     return nn.Sequential(
-        nn.Linear(input_size, output_size),
+        nn.utils.spectral_norm(nn.Linear(input_size, output_size)),
         nn.LeakyReLU()
     )
 
@@ -30,11 +30,14 @@ class Generator(nn.Module):
         hidden_layers = [generator_layer(input_s, output_s) for input_s, output_s in zip(
             self.layer_sizes, self.layer_sizes[1:])]
 
+        self.projection_layer = generator_layer(self.layer_sizes[0], self.layer_sizes[0])
+
         self.hidden = nn.Sequential(*hidden_layers)
 
         self.output_layer = nn.Sequential(nn.Linear(self.layer_sizes[-1], output_size), nn.LeakyReLU())
 
     def forward(self, x):
+        x = self.projection_layer(x)
         x = self.hidden(x)
         x = self.output_layer(x)
         # if self.output_lsn:
@@ -52,7 +55,7 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
 
-    def __init__(self, input_size, hidden_layers, output_size):
+    def __init__(self, input_size, hidden_layers, num_classes, output_size):
         super(Discriminator, self).__init__()
 
         self.layer_sizes = [input_size] + [layer_size for _,
@@ -63,9 +66,18 @@ class Discriminator(nn.Module):
 
         self.hidden = nn.Sequential(*hidden_layers)
 
-        self.output_layer = nn.Linear(self.layer_sizes[-1], output_size)
+        self.projection_layer = discriminator_layer(self.layer_sizes[-1], self.layer_sizes[-1])
 
-    def forward(self, x):
-        x = self.hidden(x)
-        x = self.output_layer(x)
+        self.num_classes = num_classes
+
+        self.output_layer = nn.utils.spectral_norm(nn.Linear(self.layer_sizes[-1], output_size))
+
+        self.embedding_layer = nn.utils.spectral_norm(nn.Embedding(num_classes, self.layer_sizes[-1]))
+
+    def forward(self, x, y=None):
+        h = self.hidden(x)
+        h = self.projection_layer(h)
+        x = self.output_layer(h)
+        if y is not None:
+          x += torch.sum(self.embedding_layer(y) * h, dim=1, keepdim=True)
         return x

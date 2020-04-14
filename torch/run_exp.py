@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam, lr_scheduler
 import scanpy
 import torch
+import numpy as np
 
 class GeneDataset(Dataset):
     """Filtered dataset as above"""
@@ -19,8 +20,9 @@ class GeneDataset(Dataset):
             root_dir (string): Directory with the pickle file
             transform: Transforms to be applied to the data
         """
-
-        self.gene_dataset = scanpy.read_h5ad(filename=h5ad_file).to_df()
+        sc = scanpy.read_h5ad(filename=h5ad_file)
+        self.gene_dataset = sc.to_df()
+        self.gene_dataset['cluster'] = sc.obs['cluster']
         self.transform = transform
 
     def __len__(self):
@@ -31,8 +33,9 @@ class GeneDataset(Dataset):
             idx = idx.tolist()
 
         gene = self.gene_dataset.iloc[idx]
-        sample = gene.to_numpy()
-        return torch.from_numpy(sample).float()
+        label = int(gene.pop('cluster'))
+        gene = gene.to_numpy(dtype=np.float32)
+        return torch.from_numpy(gene), torch.tensor(label, dtype=torch.int64)
 
 
 def get_optimizer(model, optimizer, alpha_0, alpha_final, beta1, beta2):
@@ -100,6 +103,7 @@ def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
         D = Discriminator(
             input_size=hparams['preprocessed']['genes_no'],
             hidden_layers=hparams['model']['critic_layers'],
+            num_classes = hparams['preprocessed']['clusters_no'],
             output_size=1
         )
 

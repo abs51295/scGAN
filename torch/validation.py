@@ -37,7 +37,7 @@ class Validator:
         return generated_cells
     
     def read_valid_samples(self):
-        cells = next(iter(self.dataloader))
+        cells, labels = next(iter(self.dataloader))
         cells = cells.cpu().detach().numpy()
         cells = cells.reshape((-1, cells.shape[1]))
         # cells = np.square(cells) * float(20000)

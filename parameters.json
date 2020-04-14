@@ -46,7 +46,7 @@
       },
       "model": {
         "type": "scGAN",
-        "latent_dim": 128,
+        "latent_dim": 64,
         "output_LSN": 20000,
         "critic_layers": [
           1024,

@@ -34,25 +34,20 @@ class Trainer:
             self.G.cuda()
             self.D.cuda()
 
-    def _critic_train_iteration(self, data):
+    def _critic_train_iteration(self, data, label):
         
         # Get generated data
         batch_size = data.size(0)
-        generated_data = self.sample_generator(batch_size)
+        generated_data, generated_labels = self.sample_generator(batch_size, self.D.num_classes)
 
         # Calculate probabilities on real and generated data
         # data = Variable(data)
         if self.use_cuda:
             data = data.cuda()
+            label = label.cuda()
 
-        noise = torch.normal(mean=0, std=0.1, size=data.size(), device=torch.device('cuda'))
-
-        data += noise
-        generated_data += noise
-
-
-        d_real = self.D(data)
-        d_generated = self.D(generated_data)
+        d_real = self.D(data, label)
+        d_generated = self.D(generated_data, generated_labels)
 
         # Get gradient penalty
         gradient_penalty = self._gradient_penalty(data, generated_data)
@@ -75,7 +70,7 @@ class Trainer:
 
         # Get generated data
         batch_size = data.size(0)
-        generated_data = self.sample_generator(batch_size)
+        generated_data, generated_labels = self.sample_generator(batch_size, self.D.num_classes)
 
         # Calculate L2 loss 
         # row_sum = torch.sum(generated_data ** 2, dim=1) / float(self.G.output_lsn) - 1
@@ -83,7 +78,7 @@ class Trainer:
         # norm_loss = torch.norm(row_sum)
 
         # Calculate loss and optimize
-        d_generated = self.D(generated_data)
+        d_generated = self.D(generated_data, generated_labels)
         g_loss = - d_generated.mean()
         g_loss.backward()
         self.G_opt.step()
@@ -129,9 +124,9 @@ class Trainer:
         return self.gp_weight * ((gradients_norm - 1) ** 2).mean()
 
     def _train_epoch(self, train_data_loader, valid_data_loader):
-        for i, data in enumerate(train_data_loader):
+        for i, (data, label) in enumerate(train_data_loader):
             self.num_steps += 1
-            self._critic_train_iteration(data)
+            self._critic_train_iteration(data, label)
             # Only update generator every |critic_iterations| iterations
             if self.num_steps % self.critic_iterations == 0:
                 self._generator_train_iteration(data)
@@ -163,9 +158,10 @@ class Trainer:
         np.save(os.path.join(self.exp_dir, 'G.npy'), np.array(self.losses['G']))
         np.save(os.path.join(self.exp_dir, 'D.npy'), np.array(self.losses['D']))
 
-    def sample_generator(self, num_samples):
+    def sample_generator(self, num_samples, num_labels):
         latent_samples = self.G.sample_latent(num_samples)
+        generated_labels = torch.randint(low=0, high=num_labels, size=(num_samples,), dtype=torch.int64, device=torch.device('cuda'))
         if self.use_cuda:
             latent_samples = latent_samples.cuda()
         generated_data = self.G(latent_samples)
-        return generated_data
+        return generated_data, generated_labels

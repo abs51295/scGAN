@@ -19,34 +19,30 @@ def discriminator_layer(input_size, output_size):
 
 class Generator(nn.Module):
 
-    def __init__(self, input_size, hidden_layers, output_size, output_lsn=None):
+    def __init__(self, input_size, hidden_layers, output_size, num_classes, output_lsn=None):
         super(Generator, self).__init__()
 
         self.latent_dim = input_size
         self.output_lsn = output_lsn
-        self.layer_sizes = [input_size] + [layer_size for _,
+        self.num_classes = num_classes
+
+        self.embedding = nn.Embedding(num_embeddings=num_classes, embedding_dim=input_size)
+
+        self.layer_sizes = [input_size * 2] + [layer_size for _,
                                            layer_size in enumerate(hidden_layers)]
 
         hidden_layers = [generator_layer(input_s, output_s) for input_s, output_s in zip(
             self.layer_sizes, self.layer_sizes[1:])]
 
-        self.projection_layer = generator_layer(self.layer_sizes[0], self.layer_sizes[0])
-
         self.hidden = nn.Sequential(*hidden_layers)
 
         self.output_layer = nn.Sequential(nn.Linear(self.layer_sizes[-1], output_size), nn.LeakyReLU())
 
-    def forward(self, x):
-        x = self.projection_layer(x)
+    def forward(self, x, y=None):
+        if y is not None:
+            x = torch.cat([x, self.embedding(y)], dim=1)
         x = self.hidden(x)
         x = self.output_layer(x)
-        # if self.output_lsn:
-        #     gammas_output = torch.ones(
-        #         x.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.output_lsn
-        #     sigmas = torch.sum(x, 1)
-        #     scale_ls = gammas_output / (sigmas + sys.float_info.epsilon)
-        #     x = x * scale_ls[:, None]
-        #     x = torch.sqrt(torch.add(x, sys.float_info.epsilon))
         return x
 
     def sample_latent(self, num_samples):
@@ -66,18 +62,16 @@ class Discriminator(nn.Module):
 
         self.hidden = nn.Sequential(*hidden_layers)
 
-        self.projection_layer = discriminator_layer(self.layer_sizes[-1], self.layer_sizes[-1])
+        self.aux_linear = nn.utils.spectral_norm(nn.Linear(self.layer_sizes[-1], num_classes))
+        self.mi_linear = nn.utils.spectral_norm(nn.Linear(self.layer_sizes[-1], num_classes))
 
         self.num_classes = num_classes
 
         self.output_layer = nn.utils.spectral_norm(nn.Linear(self.layer_sizes[-1], output_size))
 
-        self.embedding_layer = nn.utils.spectral_norm(nn.Embedding(num_classes, self.layer_sizes[-1]))
-
-    def forward(self, x, y=None):
+    def forward(self, x):
         h = self.hidden(x)
-        h = self.projection_layer(h)
+        c = self.aux_linear(h)
+        mi = self.mi_linear(h)
         x = self.output_layer(h)
-        if y is not None:
-          x += torch.sum(self.embedding_layer(y) * h, dim=1, keepdim=True)
-        return x
+        return x.squeeze(1), c.squeeze(1), mi.squeeze(1)

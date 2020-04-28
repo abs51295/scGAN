@@ -120,6 +120,7 @@ def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
         validation_freq = hparams['training']['validation_freq']
         valid_cells_no = hparams["preprocessed"]["valid_count"]
         max_steps=hparams['training']['max_steps']
+        cluster_ratios = hparams['preprocessed']['cluster_ratios']
 
         G_optim = get_optimizer(
             G, optimizer, alpha_0, alpha_final, beta1, beta2)
@@ -130,6 +131,7 @@ def run_exp(exp_gpu, mode='train', cells_no=None, save_cells_path=None):
                           dis_optimizer=D_optim,
                           exp_dir=log_dir, valid_cells=valid_cells_no, print_every=progress_freq, 
                           validation_every=validation_freq,
+                          cluster_ratios = cluster_ratios,
                           gp_weight=lambd, critic_iterations=critic_iter)
 
         train_dataset = GeneDataset(

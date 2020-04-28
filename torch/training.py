@@ -11,7 +11,7 @@ import os
 
 class Trainer:
     def __init__(self, generator, discriminator, gen_optimizer, dis_optimizer,
-                exp_dir, valid_cells, gp_weight=10, 
+                exp_dir, valid_cells, cluster_ratios, gp_weight=10, 
                 critic_iterations=5, print_every=50, validation_every=1000, 
                 use_cuda=True):
         self.G = generator
@@ -29,6 +29,9 @@ class Trainer:
         self.validation_every = validation_every
         self.exp_dir = exp_dir
         self.valid_cells = valid_cells
+        self.bce_loss = nn.BCEWithLogitsLoss()
+        self.cross_entropy_loss = nn.CrossEntropyLoss()
+        self.cluster_ratios = cluster_ratios
 
         if self.use_cuda:
             self.G.cuda()
@@ -46,16 +49,14 @@ class Trainer:
             data = data.cuda()
             label = label.cuda()
 
-        d_real = self.D(data, label)
-        d_generated = self.D(generated_data, generated_labels)
-
-        # Get gradient penalty
-        gradient_penalty = self._gradient_penalty(data, generated_data)
-        self.losses['GP'].append(gradient_penalty.item())
+        d_real, c, _ = self.D(data)
+        d_generated, _, mi = self.D(generated_data)
 
         # Create total loss and optimize
         self.D_opt.zero_grad()
-        d_loss = d_generated.mean() - d_real.mean() + gradient_penalty
+        d_loss = self.bce_loss(d_real, torch.ones(batch_size).cuda()) + self.bce_loss(d_generated, torch.zeros(batch_size).cuda())
+        d_loss += self.cross_entropy_loss(c, label)
+        d_loss += self.cross_entropy_loss(mi, generated_labels)
         d_loss.backward()
 
         self.D_opt.step()
@@ -72,14 +73,11 @@ class Trainer:
         batch_size = data.size(0)
         generated_data, generated_labels = self.sample_generator(batch_size, self.D.num_classes)
 
-        # Calculate L2 loss 
-        # row_sum = torch.sum(generated_data ** 2, dim=1) / float(self.G.output_lsn) - 1
-        # output_lsn = torch.ones(generated_data.size(0), dtype=torch.float32, device=torch.device('cuda')) * self.G.output_lsn
-        # norm_loss = torch.norm(row_sum)
-
         # Calculate loss and optimize
-        d_generated = self.D(generated_data, generated_labels)
-        g_loss = - d_generated.mean()
+        d_generated, c, mi = self.D(generated_data)
+        g_loss = self.bce_loss(d_generated, torch.ones(batch_size).cuda())
+        g_loss += self.cross_entropy_loss(c, generated_labels)
+        g_loss -= self.cross_entropy_loss(mi, generated_labels)
         g_loss.backward()
         self.G_opt.step()
         # self.G_scheduler.step()
@@ -142,7 +140,7 @@ class Trainer:
             if self.num_steps % self.validation_every == 0:
                 print("Validation started")
                 self.G.eval()
-                validator = Validator(self.G, self.valid_cells, valid_data_loader, self.exp_dir, self.num_steps, self.use_cuda)
+                validator = Validator(self.G, self.valid_cells, valid_data_loader, self.exp_dir, self.num_steps, self.cluster_ratios, self.use_cuda)
                 validator.run_validation()
                 self.G.train()
 
@@ -163,5 +161,5 @@ class Trainer:
         generated_labels = torch.randint(low=0, high=num_labels, size=(num_samples,), dtype=torch.int64, device=torch.device('cuda'))
         if self.use_cuda:
             latent_samples = latent_samples.cuda()
-        generated_data = self.G(latent_samples)
+        generated_data = self.G(latent_samples, generated_labels)
         return generated_data, generated_labels
